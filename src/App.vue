@@ -5,6 +5,7 @@
 </template>
 
 <script>
+import './assets/css/global.css'
 export default {
   name: 'app',
   components: {}
