@@ -2,8 +2,8 @@
   <div>
     <el-breadcrumb separator-class="el-icon-arrow-right">
       <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-      <el-breadcrumb-item>用户管理</el-breadcrumb-item>
-      <el-breadcrumb-item>用户列表</el-breadcrumb-item>
+      <el-breadcrumb-item>角色管理</el-breadcrumb-item>
+      <el-breadcrumb-item>角色列表</el-breadcrumb-item>
     </el-breadcrumb>
     <el-card class="box-card">
       <el-row :gutter="20">
@@ -13,30 +13,55 @@
             class="input-with-select"
             v-model="queryInfo.query"
             clearable
-            @clear="getUserList"
+            @clear="getRoleList"
           >
-            <el-button slot="append" icon="el-icon-search" @click="getUserList"></el-button>
+            <el-button slot="append" icon="el-icon-search" @click="getRoleList"></el-button>
           </el-input>
         </el-col>
         <el-col :span="4">
           <el-button type="primary" @click="addDialogVisible = true">添加用户</el-button>
         </el-col>
       </el-row>
-      <el-table :data="userList" style="width: 100%" border stripe>
-        <el-table-column type="index" label="#"></el-table-column>
-        <el-table-column prop="username" label="姓名" width="180"></el-table-column>
-        <el-table-column prop="email" label="邮箱" width="180"></el-table-column>
-        <el-table-column prop="mobile" label="电话"></el-table-column>
-        <el-table-column prop="role_name" label="角色"></el-table-column>
-        <el-table-column prop="mg_state" label="状态">
-          <!-- <template v-slot="scope">
-            {{scope.row}}
-          </template>-->
+      <el-table :data="roleList" style="width: 100%" border stripe>
+        <el-table-column type="expand">
           <template slot-scope="scope">
-            <el-switch v-model="scope.row.mg_state" @change="userStateChanged(scope.row)"></el-switch>
+            <el-row
+              :class="['vcenter','bdbottom',a === 0 ? 'bdtop' : '']"
+              v-for="(item1,a) in scope.row.children"
+              :key="item1.id"
+            >
+              <el-col :span="5">
+                <el-tag>{{item1.authName}}</el-tag>
+                <i class="el-icon-caret-right"></i>
+              </el-col>
+              <el-col :span="19">
+                <el-row
+                  :class="['vcenter',b === 0 ? '' : 'bdtop']"
+                  v-for="(item2,b) in item1.children"
+                  :key="item2.id"
+                >
+                  <el-col :span="6">
+                    <el-tag type="success" closable>{{item2.authName}}</el-tag>
+                    <i class="el-icon-caret-right"></i>
+                  </el-col>
+                  <el-col :span="18">
+                    <el-tag
+                      type="warning"
+                      v-for="item3 in item2.children"
+                      :key="item3.id"
+                      closable
+                      @close="removeRightById(scope.row,item3.id)"
+                    >{{item3.authName}}</el-tag>
+                  </el-col>
+                </el-row>
+              </el-col>
+            </el-row>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180">
+        <el-table-column type="index" label="#"></el-table-column>
+        <el-table-column prop="roleName" label="名称" width="180"></el-table-column>
+        <el-table-column prop="roleDesc" label="描述" width="180"></el-table-column>
+        <el-table-column label="操作">
           <template slot-scope="scope">
             <el-button
               type="primary"
@@ -50,12 +75,12 @@
               size="mini"
               @click="removeUserById(scope.row.id)"
             ></el-button>
-            <el-tooltip content="分配角色" placement="top" :enterable="false">
+            <el-tooltip content="分配权限" placement="top" :enterable="false">
               <el-button
                 type="warning"
                 icon="el-icon-setting"
                 size="mini"
-                @click="showSetRoleDialog(scope.row)"
+                @click="showSetRightDialog(scope.row)"
               ></el-button>
             </el-tooltip>
           </template>
@@ -71,30 +96,26 @@
         :total="total"
       ></el-pagination>
     </el-card>
-    <!-- 增加用户对话框 -->
+    <!-- 分配权限的对话框 -->
     <el-dialog
-      title="添加用户"
-      :visible.sync="addDialogVisible"
+      title="分配权限"
+      :visible.sync="setRightDialogVisible"
       width="30%"
-      @close="dialogClose('addFormRef')"
+      @close="setRightDialogClose"
     >
-      <el-form :model="addForm" :rules="addFormRules" ref="addFormRef" label-width="70px">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="addForm.username"></el-input>
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="addForm.password"></el-input>
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="addForm.email"></el-input>
-        </el-form-item>
-        <el-form-item label="手机号" prop="mobile">
-          <el-input v-model="addForm.mobile"></el-input>
-        </el-form-item>
-      </el-form>
+      <el-tree
+        :data="rightList"
+        :props="treeProps"
+        show-checkbox
+        node-key="id"
+        default-expand-all
+        :default-checked-keys="checkedKeys"
+        ref="treeRef"
+      ></el-tree>
+
       <span slot="footer" class="dialog-footer">
-        <el-button @click="addDialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="addUser">确 定</el-button>
+        <el-button @click="setRightDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="allotRights">确 定</el-button>
       </span>
     </el-dialog>
     <!-- 修改用户对话框 -->
@@ -118,30 +139,6 @@
       <span slot="footer" class="dialog-footer">
         <el-button @click="editDialogVisible = false">取 消</el-button>
         <el-button type="primary" @click="editUser">确 定</el-button>
-      </span>
-    </el-dialog>
-    <!-- 分配角色对话框 -->
-    <el-dialog
-      title="分配角色"
-      :visible.sync="setRoleDialogVisible"
-      width="30%"
-      @close="setRoleDialogClosed"
-    >
-      <div>
-        <p>当前用户：{{userInfo.username}}</p>
-        <p>当前角色：{{userInfo.role_name}}</p>
-        <el-select v-model="selectedRoleId" placeholder="请选择">
-          <el-option
-            v-for="item in roleList"
-            :key="item.id"
-            :label="item.roleName"
-            :value="item.id"
-          ></el-option>
-        </el-select>
-      </div>
-      <span slot="footer" class="dialog-footer">
-        <el-button @click="setRoleDialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="saveRoleInfo">确 定</el-button>
       </span>
     </el-dialog>
   </div>
@@ -175,19 +172,23 @@ export default {
       callback()
     }
     return {
-      userInfo: {},
       queryInfo: {
         query: '',
         pagenum: 1,
         pagesize: 2
       },
-      userList: [],
+      rightList: [],
+      treeProps: {
+        children: 'children',
+        label: 'authName'
+      },
+      roleId:'',
+      checkedKeys: [],
+      expandedKeys: [],
       roleList: [],
-      selectedRoleId: '',
       total: 0,
       currentPage: 1,
-      setRoleDialogVisible: false,
-      addDialogVisible: false,
+      setRightDialogVisible: false,
       addForm: {
         username: '',
         password: '123456',
@@ -238,28 +239,28 @@ export default {
     }
   },
   created () {
-    this.getUserList()
+    this.getRoleList()
   },
   methods: {
-    async getUserList () {
-      const { data: res } = await this.$http.get('users', { params: this.queryInfo })
+    async getRoleList () {
+      const { data: res } = await this.$http.get('roles')
       console.log(res)
       if (res.meta.status !== 200) return this.$message.error(res.meta.msg)
-      this.userList = res.data.users
+      this.roleList = res.data
       this.total = res.data.total
     },
     handleSizeChange (newSize) {
       console.log(newSize)
       this.queryInfo.pagesize = newSize
-      this.getUserList()
+      this.getRoleList()
     },
     handleCurrentChange (newPage) {
       console.log(newPage)
       this.queryInfo.pagenum = newPage
-      this.getUserList()
+      this.getRoleList()
     },
     dialogClose (formName) {
-      this.$refs[formName].resetFields()
+      // this.$refs[formName].resetFields()
     },
     async userStateChanged (userInfo) {
       console.log(userInfo)
@@ -282,7 +283,7 @@ export default {
         }
         this.$message.success(res.meta.msg)
         this.addDialogVisible = false
-        this.getUserList()
+        this.getRoleList()
       })
     },
     async showEditDialog (uid) {
@@ -307,45 +308,76 @@ export default {
         }
         this.$message.success(res.meta.msg)
         this.editDialogVisible = false
-        this.getUserList()
+        this.getRoleList()
       })
     },
-    async removeUserById (id) {
-      const confirmResult = await this.$confirm('此操作将永久删除用户, 是否继续?', '提示', {
+    async removeRightById (role, rightId) {
+      const confirmResult = await this.$confirm('此操作将永久删除权限, 是否继续?', '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).catch(err => err)
       if (confirmResult !== 'confirm') {
-        return this.$message.info('已取消删除用户操作')
+        return this.$message.info('已取消删除权限操作')
       }
-      const { data: res } = await this.$http.delete('users/' + id)
+      const { data: res } = await this.$http.delete(`roles/${role.id}/rights/${rightId}`)
       if (res.meta.status !== 200) {
-        return this.$message.error('删除用户失败')
+        return this.$message.error('删除用户权限失败')
       }
-      this.$message.success('删除用户成功')
-      this.getUserList()
+      this.$message.success('删除用户权限成功')
+      role.children = res.data
+      this.getRoleList()
     },
-    async showSetRoleDialog (row) {
-      this.setRoleDialogVisible = true
-      this.userInfo = row
-      const { data: res } = await this.$http.get('roles')
-      if (res.meta.status !== 200) return this.$message.error(res.meta.status)
-      this.roleList = res.data
+    async showSetRightDialog(role) {
+      this.setRightDialogVisible = true
+      this.roleId=role.id
+      const { data: res } = await this.$http.get('rights/tree')
+      console.log(res)
+      if (res.meta.status !== 200) return this.$message.error(res.meta.msg)
+      this.rightList = res.data
+      this.getLeafKeys(role,this.checkedKeys)
+      console.log(this.checkedKeys)
     },
-    async saveRoleInfo () {
-      if (!this.selectedRoleId) return this.$message.error('请选择要分配的角色')
-      const { data: res } = await this.$http.put(`users/${this.userInfo.id}/role`, { rid: this.selectedRoleId })
-      if (res.meta.status !== 200) return this.$message.error(res.meta.status)
-      this.$message.success('更新用户成功')
-      this.setRoleDialogVisible = false
+    getLeafKeys (node, arr) {
+      if (!node.children) {
+        return arr.push(node.id)
+      }
+      node.children.forEach(item => { 
+      this.getLeafKeys(item,arr)
+    })
     },
-    setRoleDialogClosed () {
-      this.selectedRoleId = ''
-      this.userInfo = {}
+    setRightDialogClose(){
+      this.checkedKeys=[]
+    },
+    async allotRights(){
+      const keys=[
+        ...this.$refs.treeRef.getCheckedKeys(),
+        ...this.$refs.treeRef.getHalfCheckedKeys(),
+      ]
+      const idStr=keys.join(",")
+      const { data: res } = await this.$http.post(`roles/${this.roleId}/rights`,{rids:idStr})
+      console.log(res)
+      if (res.meta.status !== 200) return this.$message.error(res.meta.msg)
+      this.$message.success(res.meta.msg)
+      this.getRoleList()
+      this.setRightDialogVisible = false
     }
+ 
   }
 }
 </script>
 <style lang="less" scoped>
+.el-tag {
+  margin: 7px;
+}
+.bdtop {
+  border-top: 1px solid #eee;
+}
+.bdbottom {
+  border-bottom: 1px solid #eee;
+}
+.vcenter {
+  display: flex;
+  align-items: center;
+}
 </style>
