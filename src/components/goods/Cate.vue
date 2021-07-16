@@ -68,14 +68,12 @@
 
         <el-form-item label="父级分类">
           <el-cascader
-            style
-            expand-trigger="hover"
+            expandTrigger="hover"
             v-model="selectedKeys"
             :options="parentCateList"
             :props="cascaderProps"
             @change="parentCateChangeed"
             clearable
-            change-on-select
           ></el-cascader>
         </el-form-item>
       </el-form>
@@ -133,17 +131,16 @@ export default {
       addCateFormRules: {
         cat_name: [
           { required: true, message: '请输入分类名称 ', trigger: 'blur' },
-          { min: 3, max: 5, message: '长度在 3 到 5 个字符', trigger: 'blur' }
         ],
         cat_id: [
           { required: true, message: '请输入分类名称 ', trigger: 'blur' },
-          { min: 3, max: 5, message: '长度在 3 到 5 个字符', trigger: 'blur' }
         ],
       },
       cascaderProps: {
         value: 'cat_id',
         label: 'cat_name',
-        children: 'children'
+        children: 'children',
+        checkStrictly: true
       },
       selectedKeys: [],
 
