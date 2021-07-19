@@ -205,7 +205,6 @@ export default {
       this.getParamsData()
       this.manyTableData=[]
       this.onlyTableData=[]
-      this.selectedKeys=[]
     },
     handleTabClick () {
       console.log(this.activeName)
